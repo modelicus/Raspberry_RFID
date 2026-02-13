@@ -10,7 +10,7 @@ class LEDRing:
             LED_COUNT,
             LED_GPIO_PIN,
             800000,
-            10,
+            11,
             False,
             255,
             0
