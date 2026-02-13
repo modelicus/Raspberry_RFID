@@ -1,0 +1,61 @@
+# ----------------------
+# Virtual Environment
+# ----------------------
+venv/
+.env/
+.venv/
+env/
+ENV/
+
+# ----------------------
+# Python Cache
+# ----------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ----------------------
+# Distribution / Build
+# ----------------------
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# ----------------------
+# Logs
+# ----------------------
+*.log
+
+# ----------------------
+# Environment Variables
+# ----------------------
+.env
+.env.*
+
+# ----------------------
+# Testing / Coverage
+# ----------------------
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.mypy_cache/
+.cache/
+
+# ----------------------
+# Jupyter
+# ----------------------
+.ipynb_checkpoints/
+
+# ----------------------
+# IDE / Editor
+# ----------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
