@@ -5,6 +5,8 @@ import RPi.GPIO as GPIO
 from config import DEBOUNCE_SECONDS, UDP_PORT
 from rfid_reader import RFIDReader
 from udp_sender import UDPSender
+from led_ring import LEDRing
+
 
 
 def get_station_id():
@@ -32,6 +34,7 @@ def main():
 
     reader = RFIDReader(DEBOUNCE_SECONDS)
     sender = UDPSender(target_ip, UDP_PORT)
+    led = LEDRing()   # <-- Initialize LED ring
 
     print("Station ready...")
     print(f"Sending UDP packets to {target_ip}:{UDP_PORT}")
@@ -45,8 +48,10 @@ def main():
 
                 try:
                     sender.send_uid(station_id, uid)
+                    led.success_flash()   # <-- GREEN on success
                 except Exception as e:
                     print(f"Send error: {e}")
+                    led.error_flash()     # <-- RED on failure
 
             time.sleep(0.1)  # Small delay to reduce CPU usage
 
@@ -55,7 +60,9 @@ def main():
 
     finally:
         sender.close()
+        led.clear()         # <-- Ensure LEDs turn off
         GPIO.cleanup()
+
 
 
 if __name__ == "__main__":

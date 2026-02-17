@@ -1,64 +1,62 @@
 # led_ring.py
 
 import time
-try:
-    from rpi_ws281x import PixelStrip, Color
-except ImportError:
-    print("rpi_ws281x not found. LED ring will not work.")
-    PixelStrip = None
-    Color = None
 
-LED_COUNT = 12
-LED_PIN = 10        # GPIO10 (MOSI)
-LED_FREQ_HZ = 800000
-LED_DMA = 10        # DMA channel (not critical in SPI mode)
-LED_BRIGHTNESS = 50
-LED_INVERT = False
-LED_CHANNEL = 1     # SPI channel
+try:
+    import board
+    import neopixel
+except ImportError:
+    print("neopixel library not found. LED ring will not work.")
+    neopixel = None
+
+from config import LED_COUNT, LED_GPIO_PIN, LED_BRIGHTNESS
+
 
 class LEDRing:
     def __init__(self):
-        self.enabled = PixelStrip is not None
+        self.enabled = neopixel is not None
         if not self.enabled:
             return
 
         try:
-            self.strip = PixelStrip(
+            # Convert GPIO number to board pin dynamically
+            pin = getattr(board, f"D{LED_GPIO_PIN}")
+
+            self.pixels = neopixel.NeoPixel(
+                pin,
                 LED_COUNT,
-                LED_PIN,
-                LED_FREQ_HZ,
-                LED_DMA,
-                LED_INVERT,
-                LED_BRIGHTNESS,
-                LED_CHANNEL
+                brightness=LED_BRIGHTNESS,
+                auto_write=False
             )
-            self.strip.begin()
+
+            self.clear()
+
         except Exception as e:
-            print(f"Failed to initialize LED strip: {e}")
+            print(f"Failed to initialize LED ring: {e}")
             self.enabled = False
 
     def success_flash(self):
         if not self.enabled:
             return
-        self.set_color(Color(0, 100, 0))
+        self.set_color((0, 150, 0))
         time.sleep(0.3)
         self.clear()
 
     def error_flash(self):
         if not self.enabled:
             return
-        self.set_color(Color(100, 0, 0))
+        self.set_color((150, 0, 0))
         time.sleep(0.3)
         self.clear()
 
     def set_color(self, color):
         if not self.enabled:
             return
-        for i in range(self.strip.numPixels()):
-            self.strip.setPixelColor(i, color)
-        self.strip.show()
+        self.pixels.fill(color)
+        self.pixels.show()
 
     def clear(self):
         if not self.enabled:
             return
-        self.set_color(Color(0, 0, 0))
+        self.pixels.fill((0, 0, 0))
+        self.pixels.show()
