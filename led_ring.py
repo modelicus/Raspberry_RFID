@@ -2,6 +2,7 @@
 
 import time
 import math
+import threading
 
 try:
     import board
@@ -29,27 +30,75 @@ class LEDRing:
                 auto_write=False
             )
 
+            # Animation state
+            self.state = "idle"
             self._idle_phase = 0.0
-            self._idle_speed = 0.08  # breathing speed
+            self._lock = threading.Lock()
+            self._running = True
 
-            self.clear()
+            # Start animation thread
+            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread.start()
 
         except Exception as e:
             print(f"Failed to initialize LED ring: {e}")
             self.enabled = False
 
-    # -------------------------
-    # IDLE BREATHING ORANGE
-    # -------------------------
-    def update_idle(self):
+    # ----------------------------------
+    # Public API
+    # ----------------------------------
+
+    def trigger_success(self):
         if not self.enabled:
             return
+        with self._lock:
+            self.state = "success"
 
-        # Smooth sine wave brightness
-        brightness = (math.sin(self._idle_phase) + 1) / 2  # 0–1
-        self._idle_phase += self._idle_speed
+    def trigger_error(self):
+        if not self.enabled:
+            return
+        with self._lock:
+            self.state = "error"
 
-        # Orange base (R high, G medium)
+    def stop(self):
+        if not self.enabled:
+            return
+        self._running = False
+        self._thread.join()
+        self.clear()
+
+    # ----------------------------------
+    # Internal Animation Engine
+    # ----------------------------------
+
+    def _run(self):
+        while self._running:
+            with self._lock:
+                current_state = self.state
+
+            if current_state == "idle":
+                self._animate_idle()
+
+            elif current_state == "success":
+                self._animate_success()
+                with self._lock:
+                    self.state = "idle"
+
+            elif current_state == "error":
+                self._animate_error()
+                with self._lock:
+                    self.state = "idle"
+
+            time.sleep(0.02)  # 50 FPS base timing
+
+    # ----------------------------------
+    # Animations
+    # ----------------------------------
+
+    def _animate_idle(self):
+        brightness = (math.sin(self._idle_phase) + 1) / 2
+        self._idle_phase += 0.08
+
         r = int(255 * brightness)
         g = int(80 * brightness)
         b = 0
@@ -57,41 +106,27 @@ class LEDRing:
         self.pixels.fill((r, g, b))
         self.pixels.show()
 
-    # -------------------------
-    # SUCCESS ANIMATION
-    # -------------------------
-    def success_animation(self):
-        if not self.enabled:
-            return
-
+    def _animate_success(self):
         green = (0, 180, 0)
         orange = (180, 60, 0)
 
-        # Sweep green forward
+        # Sweep green
         for i in range(LED_COUNT):
             self.pixels[i] = green
             self.pixels.show()
             time.sleep(0.02)
 
-        # Return to orange sweep
+        # Return to orange
         for i in range(LED_COUNT):
             self.pixels[i] = orange
             self.pixels.show()
             time.sleep(0.02)
 
-    # -------------------------
-    # ERROR FLASH
-    # -------------------------
-    def error_flash(self):
-        if not self.enabled:
-            return
+    def _animate_error(self):
         self.pixels.fill((180, 0, 0))
         self.pixels.show()
         time.sleep(0.3)
-        self.clear()
 
     def clear(self):
-        if not self.enabled:
-            return
         self.pixels.fill((0, 0, 0))
         self.pixels.show()

@@ -1,6 +1,8 @@
 # main.py
 
 import time
+import signal
+import sys
 import RPi.GPIO as GPIO
 
 from config import DEBOUNCE_SECONDS, UDP_PORT
@@ -9,11 +11,11 @@ from udp_sender import UDPSender
 from led_ring import LEDRing
 
 
-# ----------------------------------------
-# Configuration Prompts
-# ----------------------------------------
+# ============================================================
+# Configuration Input
+# ============================================================
 
-def get_station_id():
+def get_station_id() -> int:
     try:
         return int(input("Enter station ID: "))
     except ValueError:
@@ -21,81 +23,103 @@ def get_station_id():
         return 0
 
 
-def get_target_ip():
+def get_target_ip() -> str:
     ip = input("Enter target IP address: ").strip()
-    if not ip:
-        print("No IP entered. Defaulting to 127.0.0.1")
-        ip = "127.0.0.1"
-    return ip
+    return ip if ip else "127.0.0.1"
 
 
-# ----------------------------------------
-# Core Runtime Logic
-# ----------------------------------------
+# ============================================================
+# Station Controller
+# ============================================================
 
-def handle_scan(uid, station_id, sender, led):
+class StationController:
     """
-    Handles a single RFID scan event.
-    Responsible for:
-    - Sending UID
-    - Triggering LED animation
+    Coordinates RFID reader, UDP sender, and LED system.
+    Contains no animation logic and no timing logic.
     """
 
-    print(f"Scanned UID: {uid}")
+    def __init__(self, station_id: int, target_ip: str):
+        self.station_id = station_id
+        self.reader = RFIDReader(DEBOUNCE_SECONDS)
+        self.sender = UDPSender(target_ip, UDP_PORT)
+        self.led = LEDRing()
+        self._running = False
 
-    try:
-        sender.send_uid(station_id, uid)
-        led.success_animation()
-    except Exception as e:
-        print(f"Send error: {e}")
-        led.error_flash()
+    # ------------------------------
+    # Lifecycle
+    # ------------------------------
+
+    def start(self):
+        print("Station ready...")
+        print(f"Sending UDP packets to {self.sender.target_ip}:{UDP_PORT}")
+
+        self._running = True
+        self._event_loop()
+
+    def stop(self):
+        print("Shutting down station...")
+
+        self._running = False
+
+        try:
+            self.sender.close()
+        finally:
+            self.led.stop()
+            GPIO.cleanup()
+
+    # ------------------------------
+    # Core Event Loop
+    # ------------------------------
+
+    def _event_loop(self):
+        """
+        Polls RFID reader continuously.
+        LED animations are fully autonomous.
+        """
+        while self._running:
+            uid = self.reader.read_uid()
+
+            if uid:
+                self._handle_scan(uid)
+
+            # No animation timing here.
+            # Small sleep to prevent CPU spin.
+            time.sleep(0.005)
+
+    # ------------------------------
+    # Scan Handling
+    # ------------------------------
+
+    def _handle_scan(self, uid: str):
+        print(f"Scanned UID: {uid}")
+
+        try:
+            self.sender.send_uid(self.station_id, uid)
+            self.led.trigger_success()
+        except Exception as e:
+            print(f"Send error: {e}")
+            self.led.trigger_error()
 
 
-def run_event_loop(reader, sender, led, station_id):
-    """
-    Main runtime loop.
-    - Continuously checks for RFID
-    - Updates idle LED animation
-    """
-
-    LOOP_DELAY = 0.02  # 50Hz loop
-
-    while True:
-        uid = reader.read_uid()
-
-        if uid:
-            handle_scan(uid, station_id, sender, led)
-        else:
-            led.update_idle()
-
-        time.sleep(LOOP_DELAY)
-
-
-# ----------------------------------------
+# ============================================================
 # Entry Point
-# ----------------------------------------
+# ============================================================
 
 def main():
     station_id = get_station_id()
     target_ip = get_target_ip()
 
-    reader = RFIDReader(DEBOUNCE_SECONDS)
-    sender = UDPSender(target_ip, UDP_PORT)
-    led = LEDRing()
+    controller = StationController(station_id, target_ip)
 
-    print("Station ready...")
-    print(f"Sending UDP packets to {target_ip}:{UDP_PORT}")
+    def shutdown_handler(signum, frame):
+        controller.stop()
+        sys.exit(0)
 
-    try:
-        run_event_loop(reader, sender, led, station_id)
+    # Handle Ctrl+C and system signals cleanly
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
 
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-
-    finally:
-        sender.close()
-        led.clear()
-        GPIO.cleanup()
+    controller.start()
 
 
 if __name__ == "__main__":
