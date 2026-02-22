@@ -4,6 +4,7 @@ import time
 import signal
 import sys
 import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
 
 from config import DEBOUNCE_SECONDS, UDP_PORT
 from rfid_reader import RFIDReader
