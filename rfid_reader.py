@@ -1,61 +1,44 @@
 import time
-from mfrc522 import MFRC522
+from pirc522 import RFID
 
 
 class RFIDReader:
 
     def __init__(self, debounce_seconds=10):
 
-        self.reader = MFRC522()
+        self.reader = RFID()
 
         self.debounce_seconds = debounce_seconds
 
         self.last_seen = {}
 
 
-    # -------------------------
-    # Read UID (4 or 7 bytes)
-    # -------------------------
-
     def read_uid(self):
 
-        # Detect card
+        # Wait for tag
 
-        (status, _) = self.reader.MFRC522_Request(
-            self.reader.PICC_REQIDL
-        )
+        error, tag_type = self.reader.request()
 
-        if status != self.reader.MI_OK:
+        if error:
             return None
 
 
-        # Anticollision
+        # Read UID
 
-        (status, uid) = self.reader.MFRC522_Anticoll()
+        error, uid = self.reader.anticoll()
 
-        if status != self.reader.MI_OK:
+        if error:
             return None
 
 
-        # Select tag
-        # Required for long UID tags
-
-        self.reader.MFRC522_SelectTag(uid)
-
-
-        # Remove checksum byte
-
-        uid_bytes = uid[:4]
-
-
-        # Convert to HEX
+        # Convert UID bytes
 
         uid_str = "".join(
-            f"{byte:02X}" for byte in uid_bytes
+            f"{byte:02X}" for byte in uid
         )
 
 
-        # Debounce
+        # Debounce logic
 
         now = time.time()
 
