@@ -51,7 +51,8 @@ class StationController:
 
     def start(self):
         print("Station ready...")
-        print(f"Sending UDP packets to {self.sender.target_ip}:{UDP_PORT}")
+        print(f"Sending HTTP requests to {self.sender.endpoint}")
+
 
         self._running = True
         self._event_loop()
