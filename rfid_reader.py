@@ -11,7 +11,7 @@ class RFIDReader:
         GPIO.setmode(GPIO.BCM)
 
         # Initialize RFID reader with BCM pin mode
-        self.reader = RFID(bus=bus, device=device, pin_mode=GPIO.BCM)
+        self.reader = RFID(bus=bus, device=device, pin_irq=None, pin_mode=None)
 
         self.debounce_seconds = debounce_seconds
         self.last_seen = {}
