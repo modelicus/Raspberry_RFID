@@ -14,7 +14,7 @@ class RFIDReader:
 
 
     # -------------------------
-    # Read FULL UID
+    # Read UID (4 or 7 bytes)
     # -------------------------
 
     def read_uid(self):
@@ -29,7 +29,7 @@ class RFIDReader:
             return None
 
 
-        # Anti-collision
+        # Anticollision
 
         (status, uid) = self.reader.MFRC522_Anticoll()
 
@@ -37,40 +37,18 @@ class RFIDReader:
             return None
 
 
-        # uid example:
-        # [0x88, 0x04, 0x13, 0x25, 0xBA]
-        #
-        # 0x88 = Cascade Tag
-        # Means UID continues
+        # Select tag
+        # Required for long UID tags
 
+        self.reader.MFRC522_SelectTag(uid)
+
+
+        # Remove checksum byte
 
         uid_bytes = uid[:4]
 
 
-        # Remove cascade byte if present
-
-        if uid_bytes[0] == 0x88:
-
-            uid_bytes = uid_bytes[1:]
-
-
-            # Select first cascade level
-
-            self.reader.MFRC522_SelectTag(uid)
-
-
-            # Read second cascade level
-
-            (status2, uid2) = self.reader.MFRC522_Anticoll()
-
-            if status2 != self.reader.MI_OK:
-                return None
-
-
-            uid_bytes += uid2[:4]
-
-
-        # Convert to HEX string
+        # Convert to HEX
 
         uid_str = "".join(
             f"{byte:02X}" for byte in uid_bytes
