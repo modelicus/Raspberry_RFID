@@ -6,27 +6,13 @@ import sys
 import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)
 
-from config import DEBOUNCE_SECONDS, UDP_PORT
+from config import DEBOUNCE_SECONDS, UDP_PORT, TARGET_IP, HEARTBEAT_INTERVAL
 from rfid_reader import RFIDReader
 from udp_sender import UDPSender
 from led_ring import LEDRing
-
-
-# ============================================================
-# Configuration Input
-# ============================================================
-
-def get_station_id() -> int:
-    try:
-        return int(input("Enter station ID: "))
-    except ValueError:
-        print("Invalid input. Using station ID = 0")
-        return 0
-
-
-def get_target_ip() -> str:
-    ip = input("Enter target IP address: ").strip()
-    return ip if ip else "127.0.0.1"
+from time_sync import sync_time_from_backend
+from heartbeat import HeartbeatSender
+import DIP
 
 
 # ============================================================
@@ -44,6 +30,7 @@ class StationController:
         self.reader = RFIDReader(DEBOUNCE_SECONDS)
         self.sender = UDPSender(target_ip, UDP_PORT)
         self.led = LEDRing()
+        self.heartbeat = HeartbeatSender(f"http://{target_ip}:{UDP_PORT}", station_id, HEARTBEAT_INTERVAL)
         self._running = False
 
     # ------------------------------
@@ -54,7 +41,7 @@ class StationController:
         print("Station ready...")
         print(f"Sending HTTP requests to {self.sender.endpoint}")
 
-
+        self.heartbeat.start()
         self._running = True
         self._event_loop()
 
@@ -65,6 +52,7 @@ class StationController:
 
         try:
             self.sender.close()
+            self.heartbeat.stop()
         finally:
             self.led.stop()
             GPIO.cleanup()
@@ -108,10 +96,13 @@ class StationController:
 # ============================================================
 
 def main():
-    station_id = get_station_id()
-    target_ip = get_target_ip()
+    DIP.setup()
+    station_id = DIP.read_station_id()
+    print(f"Station ID from DIP switch: {station_id}")
 
-    controller = StationController(station_id, target_ip)
+    sync_time_from_backend(f"http://{TARGET_IP}:{UDP_PORT}")
+
+    controller = StationController(station_id, TARGET_IP)
 
     def shutdown_handler(signum, frame):
         controller.stop()

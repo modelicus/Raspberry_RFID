@@ -2,6 +2,8 @@
 
 DEBOUNCE_SECONDS = 10
 UDP_PORT = 5005
+TARGET_IP = "192.168.1.100"
+HEARTBEAT_INTERVAL = 30  # seconds
 
 LED_COUNT = 24
 LED_GPIO_PIN = 18        # Use GPIO number (not board.D18)
