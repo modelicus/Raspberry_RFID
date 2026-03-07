@@ -3,6 +3,7 @@
 # Must run as root (sudo / systemd service) to set system time.
 
 import os
+import subprocess
 import time
 import requests
 
@@ -17,7 +18,12 @@ def sync_time_from_backend(base_url: str):
             response = requests.get(url, timeout=5)
             response.raise_for_status()
             data = response.json()
-            os.clock_settime(time.CLOCK_REALTIME, data["unix_ms"] / 1000.0)
+            ts = data["unix_ms"] / 1000.0
+            clock_settime = getattr(os, "clock_settime", None)
+            if clock_settime is not None:
+                clock_settime(time.CLOCK_REALTIME, ts)
+            else:
+                subprocess.run(["date", "-s", f"@{ts:.3f}"], check=True)
             print(f"System time set from backend: {data['timestamp']}")
             return
         except Exception as e:
