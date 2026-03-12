@@ -35,13 +35,13 @@ Tested on Raspberry Pi OS Lite 32bit running on Raspberry Pi 3B 1GB
 5. Install all the necessary libraries
    ```
    pip install --upgrade pip
-   pip install gpiozero
-   pip install rpi_ws281x
+   pip install RPi.GPIO
    pip install spidev
-   pip install mfrc522
-   pip install requests
-   pip3 install rpi_ws281x adafruit-circuitpython-neopixel
+   pip install pi-rc522
+   pip install rpi_ws281x
+   pip install adafruit-circuitpython-neopixel
    python3 -m pip install --force-reinstall adafruit-blinka
+   pip install requests
    ```
 
 6. Clone this repository
