@@ -5,6 +5,6 @@ UDP_PORT = 3000
 TARGET_IP = "192.168.1.234"
 HEARTBEAT_INTERVAL = 30  # seconds
 
-LED_COUNT = 24
+LED_COUNT = 16
 LED_GPIO_PIN = 18        # Use GPIO number (not board.D18)
 LED_BRIGHTNESS = 0.2     # 0.0 - 1.0
