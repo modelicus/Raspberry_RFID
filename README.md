@@ -12,7 +12,14 @@ Tested on Raspberry Pi OS Lite 32bit running on Raspberry Pi 3B 1GB
    sudo reboot
    ```
 
-2. Enable SPI
+2. Set a static IP address (required — no DHCP server on the local network):
+   ```
+   sudo nmcli con mod "netplan-eth0" ipv4.addresses 192.168.1.101/24 ipv4.method manual
+   sudo nmcli con up "netplan-eth0"
+   ```
+   Replace `192.168.1.101` with the desired IP for this station. All stations and the backend server must be on the same `192.168.1.x` subnet.
+
+3. Enable SPI
    ```
    sudo raspi-config
    ```
@@ -20,19 +27,19 @@ Tested on Raspberry Pi OS Lite 32bit running on Raspberry Pi 3B 1GB
    Interface Options → SPI → Enable
    ```
 
-3. Prepare folder for the project
+4. Prepare folder for the project
    ```
    mkdir -p ~/apps/rfid_station
    cd ~/apps/rfid_station
    ```
 
-4. Prepare virtual environment inside project folder
+5. Prepare virtual environment inside project folder
    ```
    python3 -m venv venv
    source venv/bin/activate
    ```
 
-5. Install all the necessary libraries
+6. Install all the necessary libraries
    ```
    pip install --upgrade pip
    pip install RPi.GPIO
@@ -40,26 +47,26 @@ Tested on Raspberry Pi OS Lite 32bit running on Raspberry Pi 3B 1GB
    pip install pi-rc522
    pip install rpi_ws281x
    pip install adafruit-circuitpython-neopixel
-   python3 -m pip install --force-reinstall adafruit-blinka
+   pip install adafruit-blinka==8.43.0
    pip install requests
    ```
 
-6. Clone this repository
+7. Clone this repository
    ```
    git clone https://github.com/modelicus/Raspberry_RFID
    ```
 
-7. Set the backend IP in `Raspberry_RFID/config.py`:
+8. Set the backend IP in `Raspberry_RFID/config.py`:
    ```python
    TARGET_IP = "192.168.1.100"  # replace with your backend server IP
    ```
 
-8. Run the code manually (for testing):
+9. Run the code manually (for testing):
    ```
    sudo venv/bin/python Raspberry_RFID/main.py
    ```
 
-9. Set up systemd service for autostart on boot:
+10. Set up systemd service for autostart on boot:
 
    Create the service file:
    ```
