@@ -83,12 +83,13 @@ class StationController:
     def _handle_scan(self, uid: str):
         print(f"Scanned UID: {uid}")
 
+        self.led.trigger_rfid_read()
         try:
             self.sender.send_uid(self.station_id, uid)
-            self.led.trigger_success()
+            self.led.trigger_send_success()
         except Exception as e:
             print(f"Send error: {e}")
-            self.led.trigger_error()
+            self.led.trigger_send_failure()
 
 
 # ============================================================
