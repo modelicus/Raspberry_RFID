@@ -10,8 +10,11 @@ class RFIDReader:
         # Force BCM mode to avoid conflicts with other libraries
         GPIO.setmode(GPIO.BCM)
 
-        # Initialize RFID reader with BCM pin mode
-        self.reader = RFID(bus=bus, device=device, pin_irq=None, pin_mode=None)
+        # Initialize RFID reader.
+        # pin_rst=25 ensures the library drives the RST pin through a proper
+        # reset cycle on init — required by some RC522 modules that don't
+        # self-initialize RST.
+        self.reader = RFID(bus=bus, device=device, pin_irq=None, pin_rst=25, pin_mode=None)
 
         self.debounce_seconds = debounce_seconds
         self.last_seen = {}
