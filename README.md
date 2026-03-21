@@ -13,6 +13,12 @@ Tested on Raspberry Pi OS Lite 32bit running on Raspberry Pi 3B 1GB
    ```
 
 2. Set a static IP address (required — no DHCP server on the local network):
+```
+nmcli con show
+```
+to find connection name
+
+
    ```
    sudo nmcli con mod "netplan-eth0" ipv4.addresses 192.168.1.101/24 ipv4.method manual
    sudo nmcli con up "netplan-eth0"

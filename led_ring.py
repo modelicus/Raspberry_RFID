@@ -13,9 +13,11 @@ except ImportError:
 
 from config import LED_COUNT, LED_GPIO_PIN, LED_BRIGHTNESS
 
-_GREEN = (0, 180, 0)
-_FADE_STEPS = 4     # steps for smooth color transitions
-_FRAME_TIME = 0.02  # 50 FPS
+_BRAND = (145, 0, 72)
+_IDLE_COLOR = (255, 255, 255)
+_FADE_STEPS = 4      # steps for smooth color transitions
+_FRAME_TIME = 0.02   # 50 FPS
+_WAVE_WIDTH = 10     # LEDs in gradient wave — wider = smoother per-LED ramp
 
 
 class LEDRing:
@@ -36,6 +38,7 @@ class LEDRing:
 
             # Animation state
             self.state = "idle"
+            self._pending_result = None  # "success" or "failure" — set while rfid_read animation plays
             self._idle_phase = 0.0
             self._lock = threading.Lock()
             self._running = True
@@ -64,14 +67,20 @@ class LEDRing:
         if not self.enabled:
             return
         with self._lock:
-            self.state = "send_success"
+            if self.state == "rfid_read":
+                self._pending_result = "success"
+            else:
+                self.state = "send_success"
 
     def trigger_send_failure(self):
         """Call if data send failed."""
         if not self.enabled:
             return
         with self._lock:
-            self.state = "send_failure"
+            if self.state == "rfid_read":
+                self._pending_result = "failure"
+            else:
+                self.state = "send_failure"
 
     def stop(self):
         if not self.enabled:
@@ -95,9 +104,23 @@ class LEDRing:
             elif current_state == "rfid_read":
                 self._animate_rfid_read()
                 with self._lock:
-                    # Only advance to awaiting_send if send result hasn't arrived yet
-                    if self.state == "rfid_read":
-                        self.state = "awaiting_send"
+                    result = self._pending_result
+                    self._pending_result = None
+                # Chain directly — no sleep gap between the two waves
+                if result == "success":
+                    self._animate_send_success()
+                    with self._lock:
+                        self.state = "idle"
+                    continue
+                elif result == "failure":
+                    self._animate_send_failure()
+                    with self._lock:
+                        self.state = "idle"
+                    continue
+                else:
+                    with self._lock:
+                        if self.state == "rfid_read":
+                            self.state = "awaiting_send"
 
             elif current_state == "awaiting_send":
                 time.sleep(_FRAME_TIME)
@@ -119,11 +142,11 @@ class LEDRing:
     # ----------------------------------
 
     def _idle_color(self, brightness):
-        return (int(255 * brightness), int(80 * brightness), 0)
+        return (int(_IDLE_COLOR[0] * brightness), int(_IDLE_COLOR[1] * brightness), int(_IDLE_COLOR[2] * brightness))
 
     def _current_idle_color(self):
-        # Range 0.5–1.0 to stay above half brightness
-        brightness = (math.sin(self._idle_phase) + 1) / 4 + 0.5
+        # Range 0.25–1.0
+        brightness = (math.sin(self._idle_phase) + 1) * 0.375 + 0.25
         return self._idle_color(brightness)
 
     def _lerp_color(self, a, b, t):
@@ -138,46 +161,47 @@ class LEDRing:
     # ----------------------------------
 
     def _animate_idle(self):
-        # 0.04 is 50% slower than original 0.08; brightness stays 50%–100%
-        brightness = (math.sin(self._idle_phase) + 1) / 4 + 0.5
+        brightness = (math.sin(self._idle_phase) + 1) * 0.375 + 0.25
         self._idle_phase += 0.04
 
         self.pixels.fill(self._idle_color(brightness))
         self.pixels.show()
 
     def _animate_rfid_read(self):
-        """Sweep LEDs 1→16, each fading smoothly from idle amber to green."""
+        """Sweep a gradient wave across the ring.
+        At any frame the front LED is 0% green, with each trailing LED
+        25% further along: 0% 25% 50% 75% 100%."""
         idle_color = self._current_idle_color()
 
-        for i in range(LED_COUNT):
-            # Allow early exit if send result already came in
+        for head in range(LED_COUNT + _WAVE_WIDTH):
             with self._lock:
                 if self.state != "rfid_read":
                     break
 
-            for step in range(1, _FADE_STEPS + 1):
-                t = step / _FADE_STEPS
-                self.pixels[i] = self._lerp_color(idle_color, _GREEN, t)
-                self.pixels.show()
-                time.sleep(_FRAME_TIME)
+            for i in range(min(head + 1, LED_COUNT)):
+                t = min(1.0, (head - i) / _WAVE_WIDTH)
+                self.pixels[i] = self._lerp_color(idle_color, _BRAND, t)
+
+            self.pixels.show()
+            time.sleep(_FRAME_TIME)
 
     def _animate_send_success(self):
-        """Fade all LEDs from green back to idle amber simultaneously."""
+        """All LEDs simultaneously fade from brand to idle."""
+        time.sleep(0.3)
         idle_color = self._current_idle_color()
-
-        for step in range(1, _FADE_STEPS + 1):
-            t = step / _FADE_STEPS
-            self.pixels.fill(self._lerp_color(_GREEN, idle_color, t))
+        steps = 25
+        for step in range(1, steps + 1):
+            t = step / steps
+            self.pixels.fill(self._lerp_color(_BRAND, idle_color, t))
             self.pixels.show()
             time.sleep(_FRAME_TIME)
 
     def _animate_send_failure(self):
         """Blink red 3 times from all-green, then fade back to idle."""
-        red = (180, 0, 0)
         black = (0, 0, 0)
 
         for _ in range(3):
-            self.pixels.fill(red)
+            self.pixels.fill(_BRAND)
             self.pixels.show()
             time.sleep(0.3)
             self.pixels.fill(black)
